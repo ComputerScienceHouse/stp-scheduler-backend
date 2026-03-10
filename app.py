@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
+from pydantic import BaseModel
+
 from bucket import create_buckets
 from student import Student, load_student_csv
 from section import Section, export_sections_to_csv
@@ -283,3 +285,23 @@ def schedule():
 def export():
     export_sections_to_csv(list(sections.values()), "final_sections.csv")
     return {"status": "exported"}
+
+class Teacher(BaseModel):
+    name: str
+    subject_weights: dict[str, int]
+    is_mentor: bool
+
+class Student(BaseModel):
+    name: str
+    subject_abilities: dict[str, int]
+    section_ids: list[str]
+
+@app.post("/create/teacher")
+def add_teacher(teacher: Teacher):
+    print("Received:", teacher)
+    return {"message": "Teacher added", "teacher": teacher}
+
+@app.post("/create/student")
+def add_student(student: Student):
+    print("Received:", student)
+    return {"message": "Student added", "student": student}
