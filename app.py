@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 from bucket import create_buckets
 from student import Student, load_student_csv
@@ -296,6 +296,9 @@ class Student(BaseModel):
     subject_abilities: dict[str, int]
     section_ids: list[str]
 
+class CSV(RootModel[list[dict]]):
+    pass
+
 @app.post("/create/teacher")
 def add_teacher(teacher: Teacher):
     print("Received:", teacher)
@@ -305,3 +308,8 @@ def add_teacher(teacher: Teacher):
 def add_student(student: Student):
     print("Received:", student)
     return {"message": "Student added", "student": student}
+
+@app.post("/update/csv")
+def update_csv(csv: CSV):
+    print("Received:", csv)
+    return {"message": "CSV uploaded", "csv": csv}  
