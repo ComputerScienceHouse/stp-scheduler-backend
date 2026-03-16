@@ -1,11 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
+from pydantic import BaseModel, RootModel
+
 from bucket import create_buckets
 from student import Student, load_student_csv
 from section import Section, export_sections_to_csv
 from teacher import Teacher, load_teachers_csv, generate_teacher_dataframe
 from constants import TIME_BLOCKS
+from fastapi.middleware.cors import CORSMiddleware
 
 # -------------------------------------------------
 # In-memory application state
@@ -211,6 +214,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# TODO: This is to access the front end with. This should be looked at to change for security reasons -----
+origins = [
+    "http://localhost:3000",
+    "http://localhost",
+    "http://localhost:8080",
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# -----
+
 
 # -------------------------------------------------
 # API endpoints
@@ -268,3 +285,31 @@ def schedule():
 def export():
     export_sections_to_csv(list(sections.values()), "final_sections.csv")
     return {"status": "exported"}
+
+class Teacher(BaseModel):
+    name: str
+    subject_weights: dict[str, int]
+    is_mentor: bool
+
+class Student(BaseModel):
+    name: str
+    subject_abilities: dict[str, int]
+    section_ids: list[str]
+
+class CSV(RootModel[list[dict]]):
+    pass
+
+@app.post("/create/teacher")
+def add_teacher(teacher: Teacher):
+    print("Received:", teacher)
+    return {"message": "Teacher added", "teacher": teacher}
+
+@app.post("/create/student")
+def add_student(student: Student):
+    print("Received:", student)
+    return {"message": "Student added", "student": student}
+
+@app.post("/update/csv")
+def update_csv(csv: CSV):
+    print("Received:", csv)
+    return {"message": "CSV uploaded", "csv": csv}  
