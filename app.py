@@ -7,7 +7,7 @@ from bucket import create_buckets
 from student import Student, load_student_csv
 from section import Section, export_sections_to_csv
 from teacher import Teacher, load_teachers_csv, generate_teacher_dataframe
-from constants import TIME_BLOCKS
+from constants import TIME_BLOCKS, LUNCH_TIME, CORE_CLASSES
 from fastapi.middleware.cors import CORSMiddleware
 
 # -------------------------------------------------
@@ -64,6 +64,8 @@ def assign_time_blocks(
     )
 
     for section in ordered:
+        if section.get_subject().lower() not in CORE_CLASSES:
+            continue
         used_blocks = {
             neighbor.get_time()
             for neighbor in conflicts[section]
@@ -283,15 +285,17 @@ def schedule():
 
 @app.post("/export")
 def export():
+    # TODO: connect this app to S3 so the csv is downloadable
     export_sections_to_csv(list(sections.values()), "final_sections.csv")
     return {"status": "exported"}
 
-class Teacher(BaseModel):
+class TeacherModel(BaseModel):
     name: str
     subject_weights: dict[str, int]
+    sections: int
     is_mentor: bool
 
-class Student(BaseModel):
+class StudentModel(BaseModel):
     name: str
     subject_abilities: dict[str, int]
     section_ids: list[str]
@@ -300,12 +304,14 @@ class CSV(RootModel[list[dict]]):
     pass
 
 @app.post("/create/teacher")
-def add_teacher(teacher: Teacher):
+def add_teacher(teacher: TeacherModel):
     print("Received:", teacher)
+    t = Teacher(teacher.subject_weights, teacher.sections, teacher.name, teacher.is_mentor)
+    teachers[str(t.id)] = t
     return {"message": "Teacher added", "teacher": teacher}
 
 @app.post("/create/student")
-def add_student(student: Student):
+def add_student(student: StudentModel):
     print("Received:", student)
     return {"message": "Student added", "student": student}
 
