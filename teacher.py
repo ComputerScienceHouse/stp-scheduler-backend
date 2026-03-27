@@ -9,13 +9,16 @@ class Teacher:
         self.subjects = subjects_rankings
         self.sections = int(sections)
         self.is_mentor = is_mentor
-        self.schedule = []
+        self.schedule: list[Section] = []
     
     def is_full(self):
         """
         Checks if the teacher's schedule is full.
         """
         return len(self.schedule) == self.sections
+    
+    def get_schedule(self) -> list[Section]:
+        return self.schedule
 
     def add_section(self, section: Section):
         """
@@ -27,6 +30,11 @@ class Teacher:
             raise ValueError(f"Teacher {self.name} is not qualified to teach {section.get_subject()}.")
         else:
             self.schedule.append(section)
+            
+    def remove_section(self, section: Section):
+        if section in self.schedule:
+            section.remove_teacher()
+            self.schedule.remove(section)
     
     def __str__(self):
         return f"{self.name}: {self.sections} sections{' (Mentor)' if self.is_mentor else ''}"
@@ -91,6 +99,11 @@ def generate_teacher_dataframe(teachers: list[Teacher]) -> pd.DataFrame:
         data.append(row)
     df = pd.DataFrame(data)
     return df
+
+def delete_teacher(teacher: Teacher):
+    for section in teacher.get_schedule():
+        teacher.remove_section(section)
+    del teacher # might not be necessary
 
 if __name__ == "__main__":
     teachers = load_teachers_csv("teachers.csv")

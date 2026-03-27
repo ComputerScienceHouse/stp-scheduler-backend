@@ -58,6 +58,9 @@ class Section:
             raise ValueError(f"Teacher {teacher.name} is not qualified to teach {self.__subject}.")
         else:
             self.__teacher = teacher
+            
+    def remove_teacher(self):
+        self.__teacher = None
     
     def set_time(self, time: TimeBlock):
         self.__time = time

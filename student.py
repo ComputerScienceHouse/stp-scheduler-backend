@@ -41,6 +41,7 @@ class Student:
         # Check if the course is in the schedule
         if course in self.schedule:
             self.schedule.remove(course)
+            # course.remove_student(self)
     
     def get_schedule(self) -> list[Section]:
         """Returns a list of sections that the student is enrolled in"""
@@ -97,6 +98,11 @@ def load_student_csv(file_name) -> list[Student]:
         students.append(Student(name, english, math, asl))
     
     return students
+
+def delete_student(student: Student):
+    for section in student.get_schedule():
+        section.remove_student(student)
+    del student # might not be necessary
 
 if __name__ == "__main__":
     students = load_student_csv("data/students.csv")

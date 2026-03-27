@@ -5,9 +5,9 @@ from pydantic import BaseModel, RootModel
 from typing import Optional
 
 from bucket import create_buckets
-from student import Student, load_student_csv
+from student import Student, load_student_csv, delete_student
 from section import Section, export_sections_to_csv
-from teacher import Teacher, load_teachers_csv, generate_teacher_dataframe
+from teacher import Teacher, load_teachers_csv, generate_teacher_dataframe, delete_teacher
 from constants import TIME_BLOCKS, LUNCH_TIME, CORE_CLASSES
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -56,6 +56,7 @@ def assign_time_blocks(
     students_list: list[Student],
     teachers_list: list[Teacher]
 ) -> None:
+    """Assigns time blocks to core classes"""
     conflicts = build_conflict_graph(sections_list, students_list, teachers_list)
 
     ordered = sorted(
@@ -79,6 +80,8 @@ def assign_time_blocks(
                 break
         else:
             raise RuntimeError(f"Could not assign time block to {section}")
+        # Set default days to 5 days per week
+        section.set_days("MTWRF")
 
 
 def check_for_conflicts(
@@ -275,13 +278,23 @@ def get_buckets():
     ]
 
 
-@app.post("/schedule")
+@app.get("/schedule")
 def schedule():
     conflicts = app.state.conflicts
     return {
         "sections": [s.to_json() for s in sections.values()],
         "conflicts": conflicts
     }
+    
+@app.post("/schedule/regenerate")
+def regenerate_schedule():
+    conflicts = run_scheduler()
+    app.state.conflicts = conflicts
+    return {
+        "sections": [s.to_json() for s in sections.values()],
+        "conflicts": conflicts
+    }
+
 
 
 @app.post("/export")
@@ -290,10 +303,28 @@ def export():
     export_sections_to_csv(list(sections.values()), "final_sections.csv")
     return {"status": "exported"}
 
+@app.delete("/students/delete")
+def delete_student_api(request):
+    # request should include "student_id" as a string
+    s = students.pop(request.student_id)
+    delete_student(s)
+    print(f"Student {request.student_id} deleted")
+    return {"message": f"Student {request.student_id} deleted"}
+
+@app.delete("/teachers/delete")
+def delete_teacher_api(request):
+    # request should include "teacher_id" as a string
+    t = teachers.pop(request.teacher_id)
+    delete_teacher(t)
+    print(f"Teacher {request.teacher_id} deleted")
+    return {"message": f"Teacher {request.teacher_id} deleted"}
+    
+
+# TODO: refactor this file, split requests / responses into separate model file
 class TeacherModel(BaseModel):
     name: str
     subject_weights: dict[str, int]
-    sections: int
+    sections: Optional[int] = None
     is_mentor: bool
 
 class StudentModel(BaseModel):
@@ -304,10 +335,11 @@ class StudentModel(BaseModel):
 class CSV(RootModel[list[dict]]):
     pass
 
+# TODO: revisit the API paths, they should be normalized (i.e. /teachers... /teachers/create... /teachers/delete... /teachers/update)
 @app.post("/create/teacher")
 def add_teacher(teacher: TeacherModel):
     print("Received:", teacher)
-    t = Teacher(teacher.subject_weights, teacher.sections, teacher.name, teacher.is_mentor)
+    t = Teacher(teacher.subject_weights, teacher.sections if teacher.sections is not None else 3, teacher.name, teacher.is_mentor)
     teachers[str(t.id)] = t
     return {"message": "Teacher added", "teacher": teacher}
 
