@@ -322,12 +322,14 @@ def delete_teacher_api(request):
 
 # TODO: refactor this file, split requests / responses into separate model file
 class TeacherModel(BaseModel):
+    id: Optional[str] = None
     name: str
     subject_weights: dict[str, int]
     sections: Optional[int] = None
     is_mentor: bool
 
 class StudentModel(BaseModel):
+    id: Optional[str] = None
     name: str
     subject_abilities: dict[str, int]
     section_ids: Optional[list[str]] = None
@@ -335,15 +337,14 @@ class StudentModel(BaseModel):
 class CSV(RootModel[list[dict]]):
     pass
 
-# TODO: revisit the API paths, they should be normalized (i.e. /teachers... /teachers/create... /teachers/delete... /teachers/update)
-@app.post("/create/teacher")
+@app.post("/teachers/create")
 def add_teacher(teacher: TeacherModel):
     print("Received:", teacher)
     t = Teacher(teacher.subject_weights, teacher.sections if teacher.sections is not None else 3, teacher.name, teacher.is_mentor)
     teachers[str(t.id)] = t
     return {"message": "Teacher added", "teacher": teacher}
 
-@app.post("/create/student")
+@app.post("/students/create")
 def add_student(student: StudentModel):
     print("Received:", student)
     s = Student(student.name, **student.subject_abilities)
@@ -351,6 +352,29 @@ def add_student(student: StudentModel):
         for section_id in student.section_ids:
             s.add_section(sections[section_id])     
     return {"message": "Student added", "student": student}
+
+@app.put("/teachers/update")
+def update_teacher(teacher: TeacherModel):
+    # the request must include an id
+    t = teachers.get(teacher.id)
+    t.set_name(teacher.name)
+    t.set_subjects(teacher.subject_weights)
+    t.set_mentor(teacher.is_mentor)
+    if teacher.sections is not None:
+        t.set_sections(teacher.sections)
+    return {"message": "Teacher added", "teacher": teacher}
+
+@app.put("students/update")
+def update_student(student: StudentModel):
+    s = students.get(student.id)
+    s.set_name(student.name)
+    s.set_subject_rankings(**student.subject_abilities)
+    if student.section_ids is not None:
+        s_schedule = []
+        for section_id in student.section_ids:
+            s_schedule.append(sections.get(section_id))
+        s.set_schedule(s_schedule)
+    return {"message": "Student updated", "student": student}
 
 @app.post("/update/csv")
 def update_csv(csv: CSV):

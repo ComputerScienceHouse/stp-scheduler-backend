@@ -36,6 +36,18 @@ class Teacher:
             section.remove_teacher()
             self.schedule.remove(section)
     
+    def set_name(self, name):
+        self.name = name
+    
+    def set_subjects(self, subject_rankings):
+        self.subjects = subject_rankings
+        
+    def set_sections(self, sections):
+        self.sections = sections
+        
+    def set_mentor(self, is_mentor):
+        self.is_mentor = is_mentor
+    
     def __str__(self):
         return f"{self.name}: {self.sections} sections{' (Mentor)' if self.is_mentor else ''}"
     

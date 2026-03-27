@@ -17,6 +17,15 @@ class Student:
     def get_subject_rankings(self) -> dict:
         """Returns the student's subject rankings"""
         return self.subject_rankings
+    
+    def set_subject_rankings(self, english, math, asl):
+        self.subject_rankings = {"math": math, "english": english, "asl": asl}
+        
+    def set_name(self, name):
+        self.name = name
+        
+    def set_schedule(self, schedule):
+        self.schedule = schedule
 
     def get_english_level(self) -> int:
         """Returns the student's English level"""
