@@ -1,3 +1,3 @@
 pandas
 fastapi
-"fastapi[standard]"
+fastapi[standard]

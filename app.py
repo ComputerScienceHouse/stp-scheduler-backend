@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
 from pydantic import BaseModel, RootModel
+from typing import Optional
 
 from bucket import create_buckets
 from student import Student, load_student_csv
@@ -298,7 +299,7 @@ class TeacherModel(BaseModel):
 class StudentModel(BaseModel):
     name: str
     subject_abilities: dict[str, int]
-    section_ids: list[str]
+    section_ids: Optional[list[str]] = None
 
 class CSV(RootModel[list[dict]]):
     pass
@@ -313,6 +314,10 @@ def add_teacher(teacher: TeacherModel):
 @app.post("/create/student")
 def add_student(student: StudentModel):
     print("Received:", student)
+    s = Student(student.name, **student.subject_abilities)
+    if student.section_ids is not None:
+        for section_id in student.section_ids:
+            s.add_section(sections[section_id])     
     return {"message": "Student added", "student": student}
 
 @app.post("/update/csv")
