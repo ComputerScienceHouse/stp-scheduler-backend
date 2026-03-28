@@ -17,6 +17,15 @@ class Student:
     def get_subject_rankings(self) -> dict:
         """Returns the student's subject rankings"""
         return self.subject_rankings
+    
+    def set_subject_rankings(self, english, math, asl):
+        self.subject_rankings = {"math": math, "english": english, "asl": asl}
+        
+    def set_name(self, name):
+        self.name = name
+        
+    def set_schedule(self, schedule):
+        self.schedule = schedule
 
     def get_english_level(self) -> int:
         """Returns the student's English level"""
@@ -41,6 +50,7 @@ class Student:
         # Check if the course is in the schedule
         if course in self.schedule:
             self.schedule.remove(course)
+            # course.remove_student(self)
     
     def get_schedule(self) -> list[Section]:
         """Returns a list of sections that the student is enrolled in"""
@@ -97,6 +107,11 @@ def load_student_csv(file_name) -> list[Student]:
         students.append(Student(name, english, math, asl))
     
     return students
+
+def delete_student(student: Student):
+    for section in student.get_schedule():
+        section.remove_student(student)
+    del student # might not be necessary
 
 if __name__ == "__main__":
     students = load_student_csv("data/students.csv")

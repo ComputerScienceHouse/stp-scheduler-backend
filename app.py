@@ -2,12 +2,13 @@ from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 
 from pydantic import BaseModel, RootModel
+from typing import Optional
 
 from bucket import create_buckets
-from student import Student, load_student_csv
+from student import Student, load_student_csv, delete_student
 from section import Section, export_sections_to_csv
-from teacher import Teacher, load_teachers_csv, generate_teacher_dataframe
-from constants import TIME_BLOCKS
+from teacher import Teacher, load_teachers_csv, generate_teacher_dataframe, delete_teacher
+from constants import TIME_BLOCKS, LUNCH_TIME, CORE_CLASSES
 from fastapi.middleware.cors import CORSMiddleware
 
 # -------------------------------------------------
@@ -55,6 +56,7 @@ def assign_time_blocks(
     students_list: list[Student],
     teachers_list: list[Teacher]
 ) -> None:
+    """Assigns time blocks to core classes"""
     conflicts = build_conflict_graph(sections_list, students_list, teachers_list)
 
     ordered = sorted(
@@ -64,6 +66,8 @@ def assign_time_blocks(
     )
 
     for section in ordered:
+        if section.get_subject().lower() not in CORE_CLASSES:
+            continue
         used_blocks = {
             neighbor.get_time()
             for neighbor in conflicts[section]
@@ -76,6 +80,8 @@ def assign_time_blocks(
                 break
         else:
             raise RuntimeError(f"Could not assign time block to {section}")
+        # Set default days to 5 days per week
+        section.set_days("MTWRF")
 
 
 def check_for_conflicts(
@@ -272,42 +278,103 @@ def get_buckets():
     ]
 
 
-@app.post("/schedule")
+@app.get("/schedule")
 def schedule():
     conflicts = app.state.conflicts
     return {
         "sections": [s.to_json() for s in sections.values()],
         "conflicts": conflicts
     }
+    
+@app.post("/schedule/regenerate")
+def regenerate_schedule():
+    conflicts = run_scheduler()
+    app.state.conflicts = conflicts
+    return {
+        "sections": [s.to_json() for s in sections.values()],
+        "conflicts": conflicts
+    }
+
 
 
 @app.post("/export")
 def export():
+    # TODO: connect this app to S3 so the csv is downloadable
     export_sections_to_csv(list(sections.values()), "final_sections.csv")
     return {"status": "exported"}
 
-class Teacher(BaseModel):
+@app.delete("/students/delete")
+def delete_student_api(request):
+    # request should include "student_id" as a string
+    s = students.pop(request.student_id)
+    delete_student(s)
+    print(f"Student {request.student_id} deleted")
+    return {"message": f"Student {request.student_id} deleted"}
+
+@app.delete("/teachers/delete")
+def delete_teacher_api(request):
+    # request should include "teacher_id" as a string
+    t = teachers.pop(request.teacher_id)
+    delete_teacher(t)
+    print(f"Teacher {request.teacher_id} deleted")
+    return {"message": f"Teacher {request.teacher_id} deleted"}
+    
+
+# TODO: refactor this file, split requests / responses into separate model file
+class TeacherModel(BaseModel):
+    id: Optional[str] = None
     name: str
     subject_weights: dict[str, int]
+    sections: Optional[int] = None
     is_mentor: bool
 
-class Student(BaseModel):
+class StudentModel(BaseModel):
+    id: Optional[str] = None
     name: str
     subject_abilities: dict[str, int]
-    section_ids: list[str]
+    section_ids: Optional[list[str]] = None
 
 class CSV(RootModel[list[dict]]):
     pass
 
-@app.post("/create/teacher")
-def add_teacher(teacher: Teacher):
+@app.post("/teachers/create")
+def add_teacher(teacher: TeacherModel):
     print("Received:", teacher)
+    t = Teacher(teacher.subject_weights, teacher.sections if teacher.sections is not None else 3, teacher.name, teacher.is_mentor)
+    teachers[str(t.id)] = t
     return {"message": "Teacher added", "teacher": teacher}
 
-@app.post("/create/student")
-def add_student(student: Student):
+@app.post("/students/create")
+def add_student(student: StudentModel):
     print("Received:", student)
+    s = Student(student.name, **student.subject_abilities)
+    if student.section_ids is not None:
+        for section_id in student.section_ids:
+            s.add_section(sections[section_id])     
     return {"message": "Student added", "student": student}
+
+@app.put("/teachers/update")
+def update_teacher(teacher: TeacherModel):
+    # the request must include an id
+    t = teachers.get(teacher.id)
+    t.set_name(teacher.name)
+    t.set_subjects(teacher.subject_weights)
+    t.set_mentor(teacher.is_mentor)
+    if teacher.sections is not None:
+        t.set_sections(teacher.sections)
+    return {"message": "Teacher added", "teacher": teacher}
+
+@app.put("students/update")
+def update_student(student: StudentModel):
+    s = students.get(student.id)
+    s.set_name(student.name)
+    s.set_subject_rankings(**student.subject_abilities)
+    if student.section_ids is not None:
+        s_schedule = []
+        for section_id in student.section_ids:
+            s_schedule.append(sections.get(section_id))
+        s.set_schedule(s_schedule)
+    return {"message": "Student updated", "student": student}
 
 @app.post("/update/csv")
 def update_csv(csv: CSV):
