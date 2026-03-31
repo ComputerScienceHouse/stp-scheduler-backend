@@ -350,7 +350,8 @@ def add_student(student: StudentModel):
     s = Student(student.name, **student.subject_abilities)
     if student.section_ids is not None:
         for section_id in student.section_ids:
-            s.add_section(sections[section_id])     
+            s.add_section(sections[section_id]) 
+    students[str(s.id)] = s   
     return {"message": "Student added", "student": student}
 
 @app.put("/teachers/update")
