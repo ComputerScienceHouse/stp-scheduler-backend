@@ -220,7 +220,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# TODO: This is to access the front end with. This should be looked at to change for security reasons -----
+# TODO: BUG: This is to access the front end with. This should be looked at to change for security reasons -----
 origins = [
     "http://localhost:3000",
     "http://localhost",
@@ -304,20 +304,20 @@ def export():
     return {"status": "exported"}
 
 @app.delete("/students/delete")
-def delete_student_api(request):
+def delete_student_api(student_id: str):
     # request should include "student_id" as a string
-    s = students.pop(request.student_id)
+    s = students.pop(student_id)
     delete_student(s)
-    print(f"Student {request.student_id} deleted")
-    return {"message": f"Student {request.student_id} deleted"}
+    print(f"Student {student_id} deleted")
+    return {"message": f"Student {student_id} deleted"}
 
 @app.delete("/teachers/delete")
-def delete_teacher_api(request):
+def delete_teacher_api(teacher_id: str):
     # request should include "teacher_id" as a string
-    t = teachers.pop(request.teacher_id)
+    t = teachers.pop(teacher_id)
     delete_teacher(t)
-    print(f"Teacher {request.teacher_id} deleted")
-    return {"message": f"Teacher {request.teacher_id} deleted"}
+    print(f"Teacher {teacher_id} deleted")
+    return {"message": f"Teacher {teacher_id} deleted"}
     
 
 # TODO: refactor this file, split requests / responses into separate model file
@@ -364,7 +364,7 @@ def update_teacher(teacher: TeacherModel):
         t.set_sections(teacher.sections)
     return {"message": "Teacher added", "teacher": teacher}
 
-@app.put("students/update")
+@app.put("/students/update")
 def update_student(student: StudentModel):
     s = students.get(student.id)
     s.set_name(student.name)
@@ -380,3 +380,4 @@ def update_student(student: StudentModel):
 def update_csv(csv: CSV):
     print("Received:", csv)
     return {"message": "CSV uploaded", "csv": csv}  
+# TODO: the frontend sends a full stringified json using csv data which can be used to update the entire schedule
