@@ -376,8 +376,8 @@ def update_student(student: StudentModel):
         s.set_schedule(s_schedule)
     return {"message": "Student updated", "student": student}
 
-@app.post("/update/csv")
+@app.post("/csv/update")
 def update_csv(csv: CSV):
-    print("Received:", csv)
+    print("Received: ", csv)
     return {"message": "CSV uploaded", "csv": csv}  
 # TODO: the frontend sends a full stringified json using csv data which can be used to update the entire schedule
